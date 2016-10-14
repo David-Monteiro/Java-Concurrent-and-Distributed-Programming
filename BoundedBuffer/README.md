@@ -1,7 +1,7 @@
 # Bounded Buffer 
 DCU ca216 assign #1
 
-Developers:
+	Developers:
 	  David Furtado Monteiro
 
 	Description:
@@ -31,3 +31,16 @@ Developers:
 			  Delta = 0 Occupied = 0
 			  Delta = 0 Occupied = 0
 			  Delta = 0 Occupied = 0
+
+	Result:
+		Delta = 0 Occupied = 0
+		Delta = 0 Occupied = 1
+		Delta = 0 Occupied = 0
+		Delta = 0 Occupied = 0
+		Delta = 0 Occupied = 0
+		Delta = 0 Occupied = 0
+		Delta = 0 Occupied = 0
+		Delta = 0 Occupied = 1
+
+		Watcher thread wakes every second and prints the buffers stats but it may wake up
+	 	 before a consumer and after a producer displaying "Occupied = 1" or even "Occupied = 2"

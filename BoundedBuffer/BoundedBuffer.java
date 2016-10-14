@@ -21,23 +21,22 @@ class Buffer{
 
 
 	public boolean dataAvailable(){
-		return occupied != 0;
+		return occupied > 0;
 	}
 
 	public boolean roomAvailable(){
-		return occupied != size;
+		return occupied < size;
 	}
 
 
 	public  void getStatus() {
 		System.out.println("Delta = " + (ins - outs - occupied)
 			+ " Occupied = " + occupied);
-		System.out.println(ins + " " +  outs);
 	}
 
 	public synchronized void put (int data) {
 
-		while(roomAvailable()) { 	
+		while(!roomAvailable()) { 	
 			try {
 				wait(); 
 			}
@@ -62,7 +61,7 @@ class Buffer{
 	
 	public synchronized int take () {
 
-		while(dataAvailable()){	//wait till something appears in the buffer
+		while(!dataAvailable()){	//wait till something appears in the buffer
 			try{ 	
 				wait(); 
 			}
@@ -96,6 +95,7 @@ class Producer extends Thread {
 
   	public Producer(Buffer b) {
 		buffer = b;
+		running = true;
 	}
     
 	public synchronized void run() {
@@ -109,7 +109,7 @@ class Producer extends Thread {
 
 			}
 		} catch (InterruptedException e) {
-			 System.out.println("producer");
+			 System.out.println("producer error");
 		}
 	}
 
@@ -142,7 +142,7 @@ class Consumer extends Thread {
 			}
 
 		}  catch (InterruptedException e) {
-			 System.out.println("consumer");
+			 System.out.println("consumer error");
 		}	
 	}
 
@@ -173,7 +173,7 @@ class Watcher extends Thread {
 			}
 		}
 		catch(InterruptedException e){
-			System.out.println("watcher");
+			System.out.println("watcher error");
 		}
 
 	}
@@ -209,10 +209,7 @@ class BoundedBuffer{
 
 		try {
 			
-			initializeThread(prod);
-			initializeThread(cons);
-			initializeThread(wat);
-
+			prod.start(); cons.start(); wat.start();
 
 			Thread.sleep(60 * 1000);
 			
@@ -226,7 +223,7 @@ class BoundedBuffer{
 			
 
 		}  catch (InterruptedException e) {
-			 System.out.println("main");
+			 System.out.println("main error");
 		}
 		
 	}
