@@ -1,21 +1,22 @@
-import java.net.*;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 
 // One thread per connection, this is it
 class ServerThread extends Thread {
 
     // The socket passed from the creator
     private Socket socket = null;
-
-    BufferedReader socketIn = null;	//this is to read from the sockets
-    PrintWriter socketOut = null;	//this is to flush to the socket
     
     public ServerThread(Socket socket) {
 
     	this.socket = socket;
 
-	    pw = new PrintWriter(socket.getOutputStream(), true);
-	    br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
 
 
@@ -63,12 +64,12 @@ class ServerThread extends Thread {
 
 }
 
-public class Buffer{
+class Buffer{
 
-	private ArrayList<> content;
+	private List<String> content;
 
 	Buffer(){
-		content	 = new ArrayList<String>();
+		content	 = new ArrayList<>();
 	}
 
 	public boolean isEmpty(){
@@ -86,7 +87,7 @@ public class Buffer{
     }
 
 	// Reads a message from the buffer.
-	public synchronized String read(String message) {
+	public synchronized String read() {
 		String message = "";
 
 		if(content.size() > 0 )
@@ -105,7 +106,7 @@ public class Buffer{
     	return true;
     }
 
-    public void wait() {
+    public void justWait() {
     	try {
 			wait(); 
 		}
@@ -146,16 +147,17 @@ public class ChatServer{
 	     * 3. Call start on the new thread
 	     */
 	    new ServerThread(serverSocket.accept()).start();
+
+        serverSocket.close();
         }
     }
 }
 
-public class ClientThread{
+class ClientThread{
 
 	public Socket clientSocket;
 
-	private String nickname = "";	
-
+	private String nickname;
 	private Buffer buffer;
 
 	private Watcher watcher;
@@ -163,21 +165,17 @@ public class ClientThread{
 	private Reader reader;
 	
 
-	ClientServer(Socket s, String n, Buffer b) {
+	ClientThread(Socket s, String n, Buffer b) throws IOException {
 
 		nickname = n;
-		buffer = b;
-
 		
-		in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+		clientSocket = s;
+		buffer = b;
 
 
 		watcher = new Watcher();
-		writer = new Writer(watcher, buffer);
-		reader = new Reader(watcher, buffer);
-
-
-
+		writer = new Writer(clientSocket, watcher, buffer);
+		reader = new Reader(clientSocket, watcher, buffer);
 
 	}
 
@@ -193,8 +191,12 @@ public class ClientThread{
 		writer.terminate();
 		reader.terminate();
 
-		writer.close();
-		reader.close();
+		try {
+			writer.join();
+			reader.join();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 
 	}
 
@@ -222,7 +224,11 @@ class Watcher {
 		while ((!readersTurn && waitingWriters > 0) 
 			|| writing || b.isEmpty()){
 
-			wait();
+			try {
+				wait();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 
 		}
 		readers++;
@@ -242,7 +248,11 @@ class Watcher {
 
 		waitingWriters++;		
 		while (readers > 0 || writing){
-			wait();
+			try {
+				wait();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		}
 		waitingWriters--;
 
@@ -270,7 +280,7 @@ class Writer extends Thread {
 
 	private BufferedReader in = null;
 
-	public Writer(Socket s, Watcher w, Buffer b) {
+	public Writer(Socket s, Watcher w, Buffer b) throws IOException {
 		buffer = b;
 		watcher = w;
 		in = new BufferedReader(new InputStreamReader(s.getInputStream()));
@@ -287,14 +297,14 @@ class Writer extends Thread {
 
 				watcher.startWrite();
 
-				if(message = in.readLine() != null){
+				if((message = in.readLine()) != null){
 					buffer.write(message);
 				}
 				
 				watcher.endWrite();
 
 			}
-		} catch (InterruptedException e) {
+		} catch (IOException e) {
 			 System.out.println("writer");
 		}
 	}
@@ -313,7 +323,7 @@ class Reader extends Thread {
 
   	private PrintWriter out = null;
   	
-	public Reader (Socket s, Watcher w, Buffer b){
+	public Reader (Socket s, Watcher w, Buffer b) throws IOException{
 		buffer = b;
 		watcher = w;
 
@@ -324,19 +334,14 @@ class Reader extends Thread {
 		
 		running = true;
 
-		try {
-			while(running){
+		while(running){
 
-				watcher.startRead(buffer);
+			watcher.startRead(buffer);
 
-				out.println(buffer.read());
+			out.println(buffer.read());
 
-				watcher.endRead();
+			watcher.endRead();
 
-			}
-
-		}  catch (InterruptedException e) {
-			 System.out.println("reader");
 		}	
 	}
 
