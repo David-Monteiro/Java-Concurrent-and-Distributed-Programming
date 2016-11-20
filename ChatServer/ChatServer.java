@@ -236,7 +236,7 @@ class Watcher {
 	public void startRead(Buffer b) {
 
 		while ((!readersTurn && waitingWriters > 0) 
-			|| writing || b.isEmpty()){
+			|| writing || b == null){
 
 			try {
 				wait();
@@ -384,7 +384,7 @@ class Reader extends Thread {
 
 			watcher.startRead(buffer);
 
-			out.println(buffer.read());
+			if(!buffer.isEmpty()) out.println(buffer.read());
 
 			if( watcher.endRead() )
 				buffer.remove();
