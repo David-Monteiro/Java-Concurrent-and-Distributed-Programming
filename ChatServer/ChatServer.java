@@ -211,7 +211,7 @@ class Buffer{
 			wait(); 
 		}
 		catch (InterruptedException e) { 
-			 System.out.println("put");
+			 System.out.println("failed to wait");
 		}
     }
 
@@ -233,17 +233,20 @@ class Watcher {
 
 	}
 
-	public void startRead(Buffer b) {
+	public synchronized void startRead(Buffer b) {
+		do{ 
+			//b.justWait();
+			try {
+				wait(); 
+			}
+			catch (InterruptedException e) { 
+				 System.out.println("buffer is null");
+			}
+		} while(b == null);
 
 		while ((!readersTurn && waitingWriters > 0) 
-			|| writing || b == null){
-
-			try {
-				wait();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-
+			|| writing || b.isEmpty()){
+			b.justWait();
 		}
 		readers++;
 	}
@@ -260,15 +263,11 @@ class Watcher {
 		return true;
 	}
 
-	public void startWrite() {
+	public void startWrite(Buffer b) {
 
 		waitingWriters++;		
 		while (readers > 0 || writing){
-			try {
-				wait();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
+			b.justWait();
 		}
 		waitingWriters--;
 
@@ -319,7 +318,7 @@ class Writer extends Thread {
 
 			while(running){
 
-				watcher.startWrite();
+				watcher.startWrite(buffer);
 
 				if((message = in.readLine()) != null){
 					buffer.write(nickname + ": " + message);
@@ -347,9 +346,10 @@ class Writer extends Thread {
 
 	private void greetings() throws IOException{
 
-		watcher.startWrite();
+		watcher.startWrite(buffer);
 
 		buffer.write(nickname + " has joined the chatroom..." );
+		System.out.println(nickname + " has joined the chatroom...");
 				
 		watcher.endWrite();	
 

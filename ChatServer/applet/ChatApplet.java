@@ -22,6 +22,7 @@ class ChatClient extends Panel implements Runnable
 		/* Set up display */
 		setLayout(new BorderLayout());
 		textarea.setFont(font);
+		textarea.setEditable(false);
 		textfield.setFont(font);
 		add(BorderLayout.SOUTH, textfield);
 		add(BorderLayout.CENTER, textarea);
@@ -55,7 +56,7 @@ class ChatClient extends Panel implements Runnable
     /* Add strings from chat server to the textarea */
     public void run() {
 
-	String message;
+		String message;
 
 		try {
 		    while (true) {
