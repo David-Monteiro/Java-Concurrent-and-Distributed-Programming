@@ -28,9 +28,36 @@ class ChatClient extends Panel implements Runnable
 		add(BorderLayout.CENTER, textarea);
 
 		/* Associate sendChat with textfield callback */
-		textfield.addActionListener(new ActionListener() {
+		/*textfield.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				sendChat(e.getActionCommand());
+			}
+		});
+		textfield.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				//if()
+				String message = e.getActionCommand();
+				if (int key == KeyEvent.VK_ENTER) {
+				sendChat(message);
+			}
+		});*/
+
+		textfield.addKeyListener(new KeyListener() {
+
+			@Override
+			public void keyTyped(KeyEvent k) {      }
+
+			@Override
+			public void keyReleased(KeyEvent k) {      }
+
+			@Override
+			public void keyPressed(KeyEvent k) {
+				int key = k.getKeyCode();
+					if (key == KeyEvent.VK_ENTER) {
+						sendChat(textfield.getText());
+						/*  */
+						textfield.setText("");
+					}
 			}
 		});
 
