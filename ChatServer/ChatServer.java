@@ -65,11 +65,11 @@ class ServerThread extends Thread {
 
     	
     	//threadExecuter = newCachedThreadPool();
-    	clients = new ArrayList<>();
+		clients = new ArrayList<>();
     	
-    	watcher = new Watcher();
+		watcher = new Watcher(buffer);
 
-    	running = false;
+		running = false;
 
     }
 
@@ -206,25 +206,32 @@ class Buffer{
     	return true;
     }
 
-    public void justWait() {
-    	try {
+	public void callWait() {
+		try {
 			wait(); 
 		}
 		catch (InterruptedException e) { 
 			 System.out.println("failed to wait");
 		}
-    }
+	}
+
+		public void callNotify() {
+			notifyAll();
+	}
 
 }
 
 class Watcher {
 
+
+	private Buffer buffer;
 	private int readers;			//number of readers
 	private int waitingWriters;		//number of waiting writers
 	private boolean readersTurn;	//is the readers turn
 	private boolean writing; 		//is it writing
 
-	Watcher(){
+	Watcher(Buffer b){
+		buffer = b;
 
 		readers = 0;
 		waitingWriters = 0;
@@ -233,55 +240,59 @@ class Watcher {
 
 	}
 
-	public synchronized void startRead(Buffer b) {
-		do{ 
-			//b.justWait();
-			try {
-				wait(); 
-			}
-			catch (InterruptedException e) { 
-				 System.out.println("buffer is null");
-			}
-		} while(b == null);
+	public synchronized void startRead() throws NullPointerException {
+		try {
+			do{ 
+					buffer.callWait();
+			}  while(buffer == null);
 
-		while ((!readersTurn && waitingWriters > 0) 
-			|| writing || b.isEmpty()){
-			b.justWait();
+			while ((!readersTurn && waitingWriters > 0) 
+				|| writing || buffer.isEmpty()){
+				buffer.callWait();
+			}
+			readers++;
 		}
-		readers++;
+		catch (NullPointerException e) { 
+			e.printStackTrace();
+		}
 	}
 
-	public boolean endRead() {
+	public boolean endRead() throws NullPointerException {
 
 		readers--;
 
 		if(readers == 0)
 			readersTurn = false;
 
-		notifyAll();
+		buffer.callNotify();
 		if (readersTurn) return false;
 		return true;
 	}
 
-	public void startWrite(Buffer b) {
+	public void startWrite() throws NullPointerException {
 
 		waitingWriters++;		
 		while (readers > 0 || writing){
-			b.justWait();
+			buffer.callWait();
 		}
 		waitingWriters--;
 
 		writing = true;
 	} 
 
-	public void endWrite() {
+	public void endWrite() throws NullPointerException {
 
 		writing = false;
 
 		if(waitingWriters == 0)
 			readersTurn = true;
 
-		notifyAll();
+		try {
+			buffer.callNotify();
+
+		} catch(NullPointerException e) {	
+			e.printStackTrace();
+		}
 	} 
 
 }
@@ -289,6 +300,7 @@ class Watcher {
 class Writer extends Thread {
 
   	private Buffer buffer;
+
   	private Watcher watcher;
   	
   	private String nickname;
@@ -305,30 +317,37 @@ class Writer extends Thread {
 		
 	}
     
-	public synchronized void run() {
+	public synchronized void run() throws NullPointerException {
 
 		running = true;
 		String message = "";
 
 		try {
-
+			
 			setNickName();
-
+			System.out.println("test1");
+			
 			greetings();
+			System.out.println("test2");
 
 			while(running){
 
-				watcher.startWrite(buffer);
+				watcher.startWrite();
 
 				if((message = in.readLine()) != null){
-					buffer.write(nickname + ": " + message);
+					try{
+						buffer.write(nickname + ": " + message);
+					}
+					catch(NullPointerException e) {  
+						e.printStackTrace();
+					}
 				}
 				
 				watcher.endWrite();
 
 			}
-		} catch (IOException e) {
-			 System.out.println("writer");
+		} catch (IOException e) {	
+			e.printStackTrace();
 		}
 	}
 
@@ -340,17 +359,22 @@ class Writer extends Thread {
 	
 	private void setNickName() throws IOException {
 		
-		while((nickname = in.readLine()) != null);
+		while((nickname = in.readLine()) == null);
 		
 	}
 
 	private void greetings() throws IOException{
 
-		watcher.startWrite(buffer);
+		try {
+		    watcher.startWrite();
+		
+			//watcher.startWrite(buffer);
 
-		buffer.write(nickname + " has joined the chatroom..." );
-		System.out.println(nickname + " has joined the chatroom...");
-				
+			buffer.write(nickname + " has joined the chatroom..." );
+			System.out.println(nickname + " has joined the chatroom...");
+		} catch(NullPointerException e) {  
+			e.printStackTrace();
+		}		
 		watcher.endWrite();	
 
 	}
@@ -379,17 +403,23 @@ class Reader extends Thread {
 	public synchronized void run() {
 		
 		running = true;
-
+		
 		while(running){
 
-			watcher.startRead(buffer);
+			watcher.startRead();
+			try {
 
-			if(!buffer.isEmpty()) out.println(buffer.read());
+				if(!buffer.isEmpty()) 
+					out.println(buffer.read());
 
-			if( watcher.endRead() )
-				buffer.remove();
+				if( watcher.endRead() )
+					buffer.remove();
 
-		}	
+			}  catch(NullPointerException e) {
+				e.printStackTrace();
+			}
+		}
+
 	}
 
 
