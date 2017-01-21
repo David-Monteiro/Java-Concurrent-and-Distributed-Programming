@@ -66,7 +66,7 @@ class ServerThread extends Thread {
     	
     	//threadExecuter = newCachedThreadPool();
 		clients = new ArrayList<>();
-    	
+    	buffer = new Buffer();
 		watcher = new Watcher(buffer);
 
 		running = false;
@@ -206,7 +206,7 @@ class Buffer{
     	return true;
     }
 
-	public void callWait() {
+	public synchronized void callWait() {
 		try {
 			wait(); 
 		}
@@ -215,8 +215,8 @@ class Buffer{
 		}
 	}
 
-		public void callNotify() {
-			notifyAll();
+	public synchronized void callNotify() {
+		notifyAll();
 	}
 
 }
@@ -231,6 +231,7 @@ class Watcher {
 	private boolean writing; 		//is it writing
 
 	Watcher(Buffer b){
+		
 		buffer = b;
 
 		readers = 0;
@@ -240,21 +241,14 @@ class Watcher {
 
 	}
 
-	public synchronized void startRead() throws NullPointerException {
-		try {
-			do{ 
-					buffer.callWait();
-			}  while(buffer == null);
+	public void startRead()  throws NullPointerException {
 
-			while ((!readersTurn && waitingWriters > 0) 
-				|| writing || buffer.isEmpty()){
-				buffer.callWait();
-			}
-			readers++;
+		while ((!readersTurn && waitingWriters > 0) 
+			|| writing || buffer.isEmpty()){
+			buffer.callWait();
 		}
-		catch (NullPointerException e) { 
-			e.printStackTrace();
-		}
+		readers++;
+
 	}
 
 	public boolean endRead() throws NullPointerException {
@@ -271,10 +265,12 @@ class Watcher {
 
 	public void startWrite() throws NullPointerException {
 
-		waitingWriters++;		
+		waitingWriters++;	
+
 		while (readers > 0 || writing){
 			buffer.callWait();
 		}
+
 		waitingWriters--;
 
 		writing = true;
@@ -287,12 +283,8 @@ class Watcher {
 		if(waitingWriters == 0)
 			readersTurn = true;
 
-		try {
-			buffer.callNotify();
+		buffer.callNotify();
 
-		} catch(NullPointerException e) {	
-			e.printStackTrace();
-		}
 	} 
 
 }
@@ -320,15 +312,14 @@ class Writer extends Thread {
 	public synchronized void run() throws NullPointerException {
 
 		running = true;
+
 		String message = "";
 
 		try {
 			
 			setNickName();
-			System.out.println("test1");
 			
 			greetings();
-			System.out.println("test2");
 
 			while(running){
 
@@ -366,12 +357,11 @@ class Writer extends Thread {
 	private void greetings() throws IOException{
 
 		try {
+
 		    watcher.startWrite();
-		
-			//watcher.startWrite(buffer);
 
 			buffer.write(nickname + " has joined the chatroom..." );
-			System.out.println(nickname + " has joined the chatroom...");
+
 		} catch(NullPointerException e) {  
 			e.printStackTrace();
 		}		
@@ -421,8 +411,6 @@ class Reader extends Thread {
 		}
 
 	}
-
-
 
 	public void terminate() {
 		running = false;
