@@ -87,7 +87,7 @@ class Requests{
 		}
 		return true;
 	}
-	public void put(String request, int type) {
+	public synchronized void put(String request, int type) {
 		//type parameter stands for the type of add
 		// if 1 it will add to upRequest
 		// if 2 it will add to downRequest
@@ -118,7 +118,7 @@ class Requests{
 
 		return take(date_compare(upTail.request.split(" ")[1], downTail.request.split(" ")[1]));	
 	}
-	public String take(int type){
+	public synchronized String take(int type){
 		//type parameter stands for the type of add
 		// if 1 it will add to upRequest
 		// if 2 it will add to downRequest
@@ -221,7 +221,7 @@ class Requests{
 			return req.request;
 		}
 	}
-	public String takeHead(int type){
+	public synchronized String takeHead(int type){
 		//this method will solely be used to removed excess requests
 		String value;
 		if(type == 1){
@@ -243,7 +243,7 @@ class Requests{
 
 		return take(date_compare(upTail.request.split(" ")[1], downTail.request.split(" ")[1]));	
 	}
-	public String peek(int type){
+	public synchronized String peek(int type){
 		//type parameter stands for the type of add
 		// if 1 it will add to upRequest
 		// if 2 it will add to downRequest
@@ -291,12 +291,32 @@ class Requests{
 		if(req == null)	return "";
 		else	return req.request;
 	}
+
+	public synchronized void callWait() {
+
+		try {
+			wait(); 
+		} catch (InterruptedException e) { }
+	}
+
+	public synchronized void callNotify() {
+
+		notifyAll();
+	}
+
+	public synchronized void callSleep(int time) {
+
+		try{
+			Thread.sleep(time);
+		} catch (InterruptedException e) { }
+	}
+
+
 }
 
 class Person implements Runnable {
 
 	//Person information
-	Thread person;
 	private final int id;
 	private final int weight;
 	private final int arrivalFloor;
@@ -311,29 +331,22 @@ class Person implements Runnable {
 
 	Person(Requests r) {
 
-		person = Thread.currentThread();
-
 		requests = r;
 		id = (int)(Math.random() * 100);
 		weight = (int)(Math.random() * 5 + 5);
 		arrivalFloor = (int)(Math.random() * 10);;
 		int temp = (int)(Math.random() * 10);;
 		destinationFloor = (temp == arrivalFloor ? (temp + 1) % 10 : temp);
+
 	}
 
-	public void run() {
-		synchronized(person){ 
-			try{
-				if(requests.isFull()) {
-					person.wait(); // sleeps for some time and then repeats run
-				}
-				else {
-					arrivingGoingFromTo();
+	public void run() { 
+		if(requests.isFull()) {
+			requests.callWait(); // sleeps for some time and then repeats run
+		}
+		else {
+			arrivingGoingFromTo();
 
-				}
-			} catch ( InterruptedException exception ) {
-				exception.printStackTrace();
-			}
 		}
 	}
 
@@ -342,16 +355,9 @@ class Person implements Runnable {
 	}
 
 	public void arrivingGoingFromTo(){
-		synchronized(person){
-			//try {
-				date = new Date();
-				requests.put(myRequest());
-				person.notifyAll();
-				//person.join();
-			//} catch ( InterruptedException exception ) {
-			//		exception.printStackTrace();
-			//}
-		}
+		date = new Date();
+		requests.put(myRequest());
+		requests.callNotify();
 	}
 
 }
@@ -361,8 +367,6 @@ class Elevator implements Runnable {
 	public PrintWriter out;
 
 	private static final int MAX_WEIGHT = 20;
-
-	Thread elevator;
 
 	private final Requests requests;
 	private String [] req_in_service;
@@ -374,8 +378,6 @@ class Elevator implements Runnable {
 	private int movement_flag; // this will tell if the elevator is going up or down
 
 	Elevator(Requests r) {
-
-		elevator = Thread.currentThread();
 
 		requests = r;
 		req_in_service = new String[10];
@@ -389,30 +391,24 @@ class Elevator implements Runnable {
 	public void setOutputStream(PrintWriter out0){	out = out0;	}
 
 	public void run() {
-		synchronized(elevator){ 
-			try{
-				if(requests.isEmpty() && in_services_empty()){
-					out.print("Elevator has no request, it waits in " + currentFloor + " floor.\n");
-					elevator.wait();
-				}
-				else{
-					printAirport();
-					if(in_services_empty()){
-						startMovement();
-						out.print("Elevator gets request from " + destinationFloor + " floor. It starts running\n");
-					}
-					if(destinationFloor != currentFloor){
-						inMovement();
-						elevator.sleep(1000);
-						out.println("Elevator goes to  " + currentFloor + " floor");
-					}
-
-					if(movement_flag == 1) currentFloor = currentFloor + 1;
-					else if(movement_flag == 2) currentFloor = currentFloor - 1;
-				}
-			} catch (InterruptedException exception) {
-				exception.printStackTrace();
+		if(requests.isEmpty() && in_services_empty()){
+			out.print("Elevator has no request, it waits in " + currentFloor + " floor.\n");
+			requests.callWait();
+		}
+		else{
+			printAirport();
+			if(in_services_empty()){
+				startMovement();
+				out.print("Elevator gets request from " + destinationFloor + " floor. It starts running\n");
 			}
+			if(destinationFloor != currentFloor){
+				inMovement();
+				requests.callSleep(1000);
+				out.println("Elevator goes to  " + currentFloor + " floor");
+			}
+
+			if(movement_flag == 1) currentFloor = currentFloor + 1;
+			else if(movement_flag == 2) currentFloor = currentFloor - 1;
 		}
 	}
 
@@ -445,7 +441,7 @@ class Elevator implements Runnable {
 					currentWeight = currentWeight + (Integer.parseInt(value.split(" ")[2]));
 					in_service_size += 1;
 					out.print("Person with ID: " + (Integer.parseInt(value.split(" ")[0])) + " got in the elevator\n");
-					elevator.notify();
+					requests.callNotify();
 				}
 				else if( (Integer.parseInt(temp.split(" ")[2]) + currentWeight) > MAX_WEIGHT){
 					out.print("Person with ID: " + (Integer.parseInt(value.split(" ")[0])) + " has excess weight, so it waits\n");
@@ -485,6 +481,7 @@ class Elevator implements Runnable {
 			}
 		}
 	}
+
 	public void printAirport(){
 		for(int k=0; k<12; k++){
 			System.out.println("----------------------------------------------------------");
@@ -501,6 +498,7 @@ class Elevator implements Runnable {
 			}
 		}
 	}
+
 	public String elevatorDisplay(){
 		String value = "E"; 
 		int temp;
@@ -509,6 +507,7 @@ class Elevator implements Runnable {
 			value = value + String.format(":%02d", temp);
 		}return value;
 	}
+
 	public String personDisplay(int floor){
 		String value = "P";
 		int temp;
@@ -524,43 +523,52 @@ class Elevator implements Runnable {
 	}
 
 	public int getCurrentFloor(){	return currentFloor;	}
+	
 	public int seeDirectionOfMovement(){	return movement_flag;	}
 }
 
+//Todo
+//Add wait and notify to requests class. 
+//Verify and Validate synchronisation 
+//
+
 
 class ElevatorSystem{
-	
-	public void S(String value){
+
+	/*public void S(String value){
 		//System.out
 
-	}
+	}*/
 
 	public static void main (String [] args){
 		try{
-			Requests req = new Requests();
+			Requests requests = new Requests();
 
 			PrintWriter logbook = new PrintWriter("elevatorLog.dat");
 
-			Elevator elev = new Elevator(req);
-			Person p1;
-			Person p2;
+			Elevator elevator = new Elevator(requests);
+			Person person;
 
 			ExecutorService threadExecutor = Executors.newFixedThreadPool(3);
 
-			elev.setOutputStream(logbook);
+			elevator.setOutputStream(logbook);
 			
 			System.out.println( "Starting Elevator" );
 			
+			threadExecutor.execute(elevator);
+
 			//elev.start();
 			for(int i=0; i<100; i++){
-				p1 = new Person(req);
-				p2 = new Person(req);
-				threadExecutor.execute(elev);
-				threadExecutor.execute(p1);
-				threadExecutor.execute(p2);	
+				person = new Person(requests);
+				
+				threadExecutor.execute(person);
 			}
 			threadExecutor.shutdown();
-			//elev.join();
+
+			while (!threadExecutor.isTerminated()) {}
+			System.out.println("Finished all threads");
+
+
 			logbook.close();
 		}
 		catch(IOException exception){
