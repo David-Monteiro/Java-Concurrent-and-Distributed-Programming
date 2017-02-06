@@ -4,6 +4,7 @@
 	CA4006 Concurrent & Distributed Programming
 	Assignment 1: The Elevator Problem
 */
+
 import java.io.*;
 import java.lang.Math;
 import java.util.concurrent.Executors;
@@ -66,7 +67,7 @@ class Requests{
 		//The oldest date will be have priority
 		//if equal dates, the elevator will go up
 		String [] a = a0.split(":");
-		String [] b = b0.split(":");
+
 		for(int i = 0; i < 6; i++){
 			if(Integer.parseInt(a[i]) > Integer.parseInt(a[i])) return 1;
 			if(Integer.parseInt(a[i]) < Integer.parseInt(a[i])) return 2;
@@ -327,7 +328,7 @@ class Person implements Runnable {
 	private DateFormat dateFormat = new SimpleDateFormat("yyyy:MM:dd:HH:mm:ss");
 	private Date date;
 
-	private Random generator = new Random();
+
 
 	Person(Requests r) {
 
@@ -345,9 +346,11 @@ class Person implements Runnable {
 			requests.callWait(); // sleeps for some time and then repeats run
 		}
 		else {
+			requests.callSleep(1000);
 			arrivingGoingFromTo();
 
 		}
+		System.out.println("Thread with id: " + id + " just made a request");
 	}
 
 	public String myRequest(){
@@ -391,24 +394,26 @@ class Elevator implements Runnable {
 	public void setOutputStream(PrintWriter out0){	out = out0;	}
 
 	public void run() {
-		if(requests.isEmpty() && in_services_empty()){
-			out.print("Elevator has no request, it waits in " + currentFloor + " floor.\n");
-			requests.callWait();
-		}
-		else{
-			printAirport();
-			if(in_services_empty()){
-				startMovement();
-				out.print("Elevator gets request from " + destinationFloor + " floor. It starts running\n");
+		while(true){
+			if(requests.isEmpty() && in_services_empty()){
+				out.print("Elevator has no request, it waits in " + currentFloor + " floor.\n");
+				requests.callWait();
 			}
-			if(destinationFloor != currentFloor){
-				inMovement();
-				requests.callSleep(1000);
-				out.println("Elevator goes to  " + currentFloor + " floor");
-			}
+			else{
+				//printAirport();
+				if(in_services_empty()){
+					startMovement();
+					out.print("Elevator gets request from " + destinationFloor + " floor. It starts running\n");
+				}
+				if(destinationFloor != currentFloor){
+					inMovement();
+					requests.callSleep(1000);
+					out.println("Elevator goes to  " + currentFloor + " floor");
+				}
 
-			if(movement_flag == 1) currentFloor = currentFloor + 1;
-			else if(movement_flag == 2) currentFloor = currentFloor - 1;
+				if(movement_flag == 1) currentFloor = currentFloor + 1;
+				else if(movement_flag == 2) currentFloor = currentFloor - 1;
+			}
 		}
 	}
 
@@ -486,8 +491,8 @@ class Elevator implements Runnable {
 		for(int k=0; k<12; k++){
 			System.out.println("----------------------------------------------------------");
 			if(k == 0)	System.out.println("-|   Elevator  |      Hall              |       Floor    -");
-			else if(k == 11)	System.out.printf("-|%30s %26s", "AIRPORT", "-\n");
-			//	System.out.println("-          				AIRPORT        				     -");
+			else if(k == 11)	//System.out.printf("-|%30s %26s", "AIRPORT", "-\n");
+				System.out.println("-          				AIRPORT        				     -");
 			else if(k > 0 && k < 11){
 				if(currentFloor == k)	System.out.printf("-|%-13s", elevatorDisplay());
 				else 	System.out.printf("-|%-13s", "");
@@ -555,7 +560,9 @@ class ElevatorSystem{
 			
 			System.out.println( "Starting Elevator" );
 			
-			threadExecutor.execute(elevator);
+			//threadExecutor.execute(elevator);
+			Thread t1 = new Thread(elevator);
+			t1.start();
 
 			//elev.start();
 			for(int i=0; i<100; i++){
@@ -567,11 +574,12 @@ class ElevatorSystem{
 
 			while (!threadExecutor.isTerminated()) {}
 			System.out.println("Finished all threads");
+			t1.join();
 
 
 			logbook.close();
 		}
-		catch(IOException exception){
+		catch(IOException | InterruptedException exception){
 		//catch(IOException | InterruptedException exception){
 			System.out.println("File not founInterruptedException exd!");
 			exception.printStackTrace();
