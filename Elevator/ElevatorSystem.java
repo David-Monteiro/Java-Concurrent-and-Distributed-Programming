@@ -418,6 +418,7 @@ class Elevator implements Runnable {
 	}
 
 	public void startMovement(){
+		System.out.println("startMovement");
 		req_in_service[in_service_size] = requests.peek();
 		in_service_size += 1;
 
@@ -428,6 +429,7 @@ class Elevator implements Runnable {
 	}
 
 	public void inMovement(){
+		System.out.println("inMovement");
 		goingOut();
 		goingIn();
 		setDestination();
@@ -435,10 +437,11 @@ class Elevator implements Runnable {
 	}
 
 	public void goingIn() {
+		System.out.println("goingIn");
 		String value = " ";
 		if(!value.equals("") ) {
 			String temp = requests.peek(movement_flag, currentFloor);
-			System.out.println(temp);
+			System.out.println("temp");
 			if(!temp.equals("")){
 				if( (Integer.parseInt(temp.split(" ")[2]) + currentWeight) <= MAX_WEIGHT) {					
 					value = requests.take(movement_flag, currentFloor);
@@ -455,6 +458,7 @@ class Elevator implements Runnable {
 		}
 	}
 	public String goingOut() {
+		System.out.println("goingOut");
 		String value = ""; 
 		if(!in_services_empty()){
 			for(int i=0; i<in_service_size; i++){
@@ -469,6 +473,7 @@ class Elevator implements Runnable {
 	}
 
 	public void remove_req_in_service(int index) {
+		System.out.println("remove_req_in_service");
 		for (int i = index; i < in_service_size-1; i++)
     		req_in_service[i] = req_in_service[i + 1];
     	in_service_size -= 1;
@@ -477,6 +482,7 @@ class Elevator implements Runnable {
 	public boolean in_services_empty() { 	return in_service_size==0;	}
 
 	public void setDestination(){
+		System.out.println("setDestination");
 		if(!in_services_empty()){
 			for(int i=0; i<in_service_size; i++){
 				if(movement_flag == 1 && destinationFloor<Integer.parseInt(req_in_service[i].split(" ")[2]))
@@ -505,6 +511,7 @@ class Elevator implements Runnable {
 	}
 
 	public String elevatorDisplay(){
+		System.out.println("elevatorDisplay");
 		String value = "E"; 
 		int temp;
 		for(int i=0; i<in_service_size; i++){
@@ -514,6 +521,7 @@ class Elevator implements Runnable {
 	}
 
 	public String personDisplay(int floor){
+		System.out.println("personDisplay");
 		String value = "P";
 		int temp;
 		while( !(requests.peek(movement_flag, floor).equals("")) ){
@@ -535,6 +543,7 @@ class Elevator implements Runnable {
 //Todo
 //Add wait and notify to requests class. 
 //Verify and Validate synchronisation 
+//change data structure so it is less complex -- right now requests class is halting the program
 //
 
 
@@ -553,18 +562,16 @@ class ElevatorSystem{
 
 			Elevator elevator = new Elevator(requests);
 			Person person;
-
 			ExecutorService threadExecutor = Executors.newFixedThreadPool(3);
 
 			elevator.setOutputStream(logbook);
 			
 			System.out.println( "Starting Elevator" );
 			
-			//threadExecutor.execute(elevator);
-			Thread t1 = new Thread(elevator);
-			t1.start();
+			threadExecutor.execute(elevator);
+			//Thread t1 = new Thread(elevator);
+			//t1.start();
 
-			//elev.start();
 			for(int i=0; i<100; i++){
 				person = new Person(requests);
 				
@@ -574,12 +581,12 @@ class ElevatorSystem{
 
 			while (!threadExecutor.isTerminated()) {}
 			System.out.println("Finished all threads");
-			t1.join();
+			//t1.join();
 
 
 			logbook.close();
 		}
-		catch(IOException | InterruptedException exception){
+		catch(IOException /*| InterruptedException*/ exception){
 		//catch(IOException | InterruptedException exception){
 			System.out.println("File not founInterruptedException exd!");
 			exception.printStackTrace();
