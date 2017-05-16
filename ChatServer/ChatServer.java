@@ -206,7 +206,7 @@ class Buffer{
     	return true;
     }
 
-	public synchronized void callWait() {
+	public void callWait() {
 		try {
 			wait(); 
 		}
@@ -215,7 +215,7 @@ class Buffer{
 		}
 	}
 
-	public synchronized void callNotify() {
+	public void callNotify() {
 		notifyAll();
 	}
 
